@@ -46,6 +46,7 @@ extern "C" {
 #define OFONO_SUPPLEMENTARY_SERVICES_INTERFACE "org.ofono.SupplementaryServices"
 #define OFONO_NETWORK_REGISTRATION_INTERFACE "org.ofono.NetworkRegistration"
 #define OFONO_NETWORK_OPERATOR_INTERFACE "org.ofono.NetworkOperator"
+#define OFONO_CELL_INFO_INTERFACE "org.ofono.NeighborCellInfo"
 #define OFONO_PHONEBOOK_INTERFACE "org.ofono.Phonebook"
 #define OFONO_RADIO_SETTINGS_INTERFACE "org.ofono.RadioSettings"
 #define OFONO_AUDIO_SETTINGS_INTERFACE "org.ofono.AudioSettings"
