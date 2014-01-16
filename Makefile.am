@@ -19,7 +19,8 @@ pkginclude_HEADERS = include/log.h include/plugin.h include/history.h \
 			include/cdma-connman.h include/gnss.h \
 			include/private-network.h include/cdma-netreg.h \
 			include/cdma-provision.h include/handsfree.h \
-			include/sim-mnclength.h include/spn-table.h
+			include/sim-mnclength.h include/spn-table.h \
+			include/cell-info.h
 
 nodist_pkginclude_HEADERS = include/version.h
 
@@ -566,7 +567,8 @@ src_ofonod_SOURCES = $(gdbus_sources) $(builtin_sources) src/ofono.ver \
 			src/cdma-smsutil.h src/cdma-smsutil.c \
 			src/cdma-sms.c src/private-network.c src/cdma-netreg.c \
 			src/cdma-provision.c src/handsfree.c \
-			src/sim-mnclength.c src/spn-table.c
+			src/sim-mnclength.c src/spn-table.c \
+			src/cell-info.c
 
 src_ofonod_LDADD = $(builtin_libadd) @GLIB_LIBS@ @DBUS_LIBS@ -ldl
 
@@ -610,7 +612,7 @@ doc_files = doc/overview.txt doc/ofono-paper.txt doc/release-faq.txt \
 			doc/audio-settings-api.txt doc/text-telephony-api.txt \
 			doc/calypso-modem.txt doc/message-api.txt \
 			doc/location-reporting-api.txt \
-			doc/certification.txt
+			doc/certification.txt doc/cell-info.txt
 
 
 test_scripts = test/backtrace \
