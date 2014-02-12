@@ -418,3 +418,28 @@ error:
 
 	return NULL;
 }
+
+unsigned char *g_ril_unsol_parse_broadcast_sms(GRil *gril,
+						const struct ril_msg *message)
+{
+	struct parcel rilp;
+	unsigned char *cbs_pdu;
+	char *hex_pdu;
+
+	g_ril_init_parcel(message, &rilp);
+
+	cbs_pdu = (unsigned char *) parcel_r_string(&rilp);
+
+	if (cbs_pdu == NULL || rilp.malformed) {
+		ofono_error("%s: malformed parcel received", __func__);
+		return NULL;
+	}
+
+	hex_pdu = encode_hex(cbs_pdu, strlen((char *) cbs_pdu), 0);
+	g_ril_append_print_buf(gril, "{%s}", hex_pdu);
+	g_free(hex_pdu);
+
+	g_ril_print_unsol(gril, message);
+
+	return cbs_pdu;
+}

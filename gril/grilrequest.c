@@ -780,3 +780,72 @@ void g_ril_request_set_clir(GRil *gril,
 
 	g_ril_append_print_buf(gril, "(%d)", mode);
 }
+
+void g_ril_request_gsm_sms_broadcast_activation(GRil *gril,
+						int deactivate,
+						struct parcel *rilp)
+{
+	parcel_init(rilp);
+
+	parcel_w_int32(rilp, 1);	/* Number of params */
+	parcel_w_int32(rilp, deactivate);
+
+	g_ril_append_print_buf(gril, "(%d)", deactivate);
+}
+
+void g_ril_request_gsm_set_broadcast_sms_config(GRil *gril,
+						const char *topics,
+						struct parcel *rilp)
+{
+	unsigned numrang = 1;
+	const char *tp;
+	const char *rg;
+
+	parcel_init(rilp);
+
+	if (topics == NULL || topics[0] == '\0') {
+		parcel_w_int32(rilp, 0);
+		return;
+	}
+
+	for (tp = topics; *tp != '\0'; ++tp) {
+		if(*tp == ',')
+			++numrang;
+	}
+
+	parcel_w_int32(rilp, numrang);
+
+	g_ril_append_print_buf(gril, "(num=%d", numrang);
+
+	for (rg = topics; *rg != '\0'; ) {
+		char *endp;
+		int start_id;
+
+		start_id = strtol(rg, &endp, 10);
+		parcel_w_int32(rilp, start_id);
+
+		if (*endp == '-') {
+			int end_id = strtol(endp + 1, &endp, 10);
+			g_ril_append_print_buf(gril, "%s,%d-%d",
+						print_buf, start_id, end_id);
+			parcel_w_int32(rilp, end_id);
+		} else {
+			g_ril_append_print_buf(gril, "%s,%d",
+						print_buf, start_id);
+			parcel_w_int32(rilp, start_id);
+		}
+
+		/* Any DCS (mako way) */
+		parcel_w_int32(rilp, 0x0FFF);
+		parcel_w_int32(rilp, 0x0FFF);
+
+		parcel_w_char(rilp, '\x01');	/* Activate */
+
+		if (*endp == '\0')
+			break;
+
+		rg = endp + 1;
+	}
+
+	g_ril_append_print_buf(gril, "%s)", print_buf);
+}

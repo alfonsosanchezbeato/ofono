@@ -197,6 +197,14 @@ void g_ril_request_set_clir(GRil *gril,
 				int mode,
 				struct parcel *rilp);
 
+void g_ril_request_gsm_sms_broadcast_activation(GRil *gril,
+						int deactivate,
+						struct parcel *rilp);
+
+void g_ril_request_gsm_set_broadcast_sms_config(GRil *gril,
+						const char *topics,
+						struct parcel *rilp);
+
 #ifdef __cplusplus
 }
 #endif
