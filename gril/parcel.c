@@ -107,6 +107,19 @@ int parcel_w_int32(struct parcel *p, int32_t val)
 	return 0;
 }
 
+int parcel_w_char(struct parcel *p, char val)
+{
+	/*
+	 * Write a word-aligned char: doing it this way we make sure that there
+	 * will be no issues with endian-ness
+	 */
+	int32_t int_val = 0;
+	*(char *) &int_val = val;
+	parcel_w_int32(p, int_val);
+
+	return 0;
+}
+
 int parcel_w_string(struct parcel *p, const char *str)
 {
 	gunichar2 *gs16;
