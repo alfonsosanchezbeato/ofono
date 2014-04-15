@@ -1,0 +1,72 @@
+Fixed Dialling Numbers (FDN) hierarchy [experimental]
+=====================================================
+
+Service		org.ofono
+Interface	org.ofono.FixedDiallingNumbers
+Object path	[variable prefix]/{modem0,modem1,...}
+
+Methods		dict GetProperties()
+
+			Returns properties. See the properties section for
+			available properties.
+
+			Possible Errors: [service].Error.InProgress
+					 [service].Error.NotImplemented
+					 [service].Error.Failed
+
+		void SetProperty(string name, variant value)
+
+			Changes the value of the specified property. Only
+			properties that are listed as readwrite are
+			changeable. On success a PropertyChanged signal
+			will be emitted.
+
+			Possible Errors: [service].Error.InProgress
+					 [service].Error.NotImplemented
+					 [service].Error.InvalidArguments
+					 [service].Error.Failed
+
+		array{uint32 id, string name, string number} GetEntries()
+
+			Get an array of phone book entries with numbers that can
+			be reached. id identifies the entry for further calls.
+
+			Possible Errors: [service].Error.InProgress
+					 [service].Error.Failed
+
+		uint32 AddEntry(string name, string number)
+
+			Creates an entry in FDN phone book. The id of the entry
+			is returned. PIN2 must be unlocked, otherwise the method
+			call will fail.
+
+			Possible Errors: [service].Error.InvalidArguments
+					 [service].Error.InvalidFormat
+					 [service].Error.Failed
+
+		void RemoveEntry(uint32 id)
+
+			Removes the entry identified by id. PIN2 must be
+			unlocked, otherwise the method call will fail.
+
+			Possible Errors: [service].Error.InvalidArguments
+					 [service].Error.Failed
+
+		void EditEntry(uint32 id, string name, string number)
+
+			Writes name and number in entry identified by id. PIN2
+			must be unlocked, otherwise the method call will fail.
+
+			Possible Errors: [service].Error.InvalidArguments
+					 [service].Error.InvalidFormat
+					 [service].Error.Failed
+
+Signals		PropertyChanged(string property, variant value)
+
+			This signal indicates a changed value of the given
+			property.
+
+Properties	string Enabled [readwrite]
+
+			Boolean representing FDN status. PIN2 must be unlocked
+			to write this property.
