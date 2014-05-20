@@ -39,33 +39,33 @@ Serving cell
 
 		uint16 MobileCountryCode
 			Mobile Country Code of serving cell. Possible values:
-				Values: 0...999"
+				Values: 0...999
 
 		uint16 MobileNetworkCode
 			Mobile Network Code of serving cell.
-				Values: 0...999"
+				Values: 0...999
 
 		uint16 LocationAreaCode [GERAN]
 			Location area code of serving cell.
 				Values: 0...65535
 
 		uint16 CellId [GERAN]
-			Cell Id of serving cell.
+			GSM Cell Identity - TS 27.007.
 				Values: 0...65535
 
 		byte TimingAdvance [GERAN, optional]
 			Timing advance.
-				Values: 0...63
+                               Values: 0...63
 
 		uint32 UniqueCellId [UTRA-FDD]
-			Serving WCDMA unique cell ID.
+			28-bit UMTS Cell Identity.
 				Values: 0...268435455
 
 		uint16 ScramblingCode [UTRA-FDD]
-			Primary scrambling code.
+			9-bit Primary scrambling code - TS 25.331.
 				Values: 0...511
 
-		uint16 UARFCN-DL [UTRA-FDD]
+		uint16 UARFCN-DL [UTRA-FDD, optional]
 			Downlink UTRA Absolute Radio Frequency Channel Number
 			of serving cell.
 				Values: 0...16383
