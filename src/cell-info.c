@@ -47,8 +47,9 @@ static DBusMessage *ci_get_cells(DBusConnection *, DBusMessage *, void *);
 static GSList *g_drivers = NULL;
 
 static GDBusMethodTable ci_methods[] = {
-	{ "AquireMeasurement",	      "",	"aa{sv}",	ci_get_cells,
-	  G_DBUS_METHOD_FLAG_ASYNC },
+	{ GDBUS_ASYNC_METHOD("AquireMeasurement",
+				NULL, GDBUS_ARGS({ "properties", "aa{sv}" }),
+				ci_get_cells) },
 	{ }
 };
 
@@ -433,7 +434,7 @@ static void ofono_neigh_cell_info_query_cb(const struct ofono_error *error,
 error:
 	reply = __ofono_error_failed(msg);
 	__ofono_dbus_pending_reply(&msg, reply);
-	return;p
+	return;
 
 }
 
