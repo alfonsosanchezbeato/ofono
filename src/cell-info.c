@@ -33,6 +33,8 @@
 #include "common.h"
 #include "ofono/cell-info.h"
 
+#define GSM "gsm"
+#define WCDMA "wcdma"
 
 struct ofono_cell_info {
 	DBusMessage *pending;
@@ -40,7 +42,6 @@ struct ofono_cell_info {
 	const struct ofono_cell_info_driver *driver;
 	void *driver_data;
 };
-
 
 static DBusMessage *ci_aquire(DBusConnection *, DBusMessage *, void *);
 static DBusMessage *ci_get_cell_info_list(DBusConnection *, DBusMessage *,
@@ -463,6 +464,61 @@ static DBusMessage *ci_aquire(DBusConnection *conn, DBusMessage *msg,
 	}
 }
 
+static int fill_cell_info(DBusMessageIter *iter, struct cell_info *ci)
+{
+	DBusMessageIter iter_array;
+	const char *type;
+	const char *mcc = ci->mcc;
+	const char *mnc = ci->mnc;
+
+	dbus_message_iter_open_container(iter, DBUS_TYPE_ARRAY,
+						"{sv}",
+						&iter_array);
+
+	if (ci->type == GSM_TYPE)
+		type = GSM;
+	else
+		type = WCDMA;
+
+	ofono_dbus_dict_append(&iter_array, "Type",
+				DBUS_TYPE_STRING,
+				&type);
+
+	ofono_dbus_dict_append(&iter_array, "MobileNetworkCode",
+				DBUS_TYPE_STRING,
+				&mnc);
+
+	ofono_dbus_dict_append(&iter_array, "MobileCountryCode",
+				DBUS_TYPE_STRING,
+				&mcc);
+
+	if (ci->type == GSM_TYPE) {
+		ofono_dbus_dict_append(&iter_array, "LocationAreaCode",
+					DBUS_TYPE_UINT16,
+					&ci->gsm.lac);
+		ofono_dbus_dict_append(&iter_array, "CellId",
+					DBUS_TYPE_UINT16,
+					&ci->gsm.cid);
+	} else  {
+		ofono_dbus_dict_append(&iter_array, "LocationAreaCode",
+					DBUS_TYPE_UINT16,
+					&ci->wcdma.lac);
+
+		ofono_dbus_dict_append(&iter_array, "UniqueCellId",
+					DBUS_TYPE_UINT16,
+					&ci->wcdma.cid);
+
+		ofono_dbus_dict_append(&iter_array, "ScramblingCode",
+					DBUS_TYPE_UINT16,
+					&ci->wcdma.psc);
+
+	}
+
+      dbus_message_iter_close_container(iter, &iter_array);
+
+      return 0;
+}
+
 static void cell_info_list_cb(const struct ofono_error *error, GSList *list,
 				void *data)
 {
@@ -473,7 +529,7 @@ static void cell_info_list_cb(const struct ofono_error *error, GSList *list,
 
 	DBG("");
 
-	if (error->type != OFONO_ERROR_TYPE_NO_ERROR) {
+	if (error->type != OFONO_ERROR_TYPE_NO_ERROR || list == NULL) {
 		ofono_error("Neighbor cell info query failed");
 		goto error;
 	}
@@ -489,8 +545,13 @@ static void cell_info_list_cb(const struct ofono_error *error, GSList *list,
 						"a{sv}",
 						&iter_array);
 
+	g_slist_foreach(list, fill_cell_info);
+
 	dbus_message_iter_close_container(&iter, &iter_array);
 	__ofono_dbus_pending_reply(&msg, reply);
+
+	g_slist_free_full(list, g_free);
+
 	return;
 
 error:
