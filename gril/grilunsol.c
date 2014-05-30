@@ -34,10 +34,21 @@
 #include <ofono/log.h>
 #include <ofono/modem.h>
 #include <ofono/gprs-context.h>
+#include <ofono/cell-info.h>
 #include "util.h"
 
 #include "common.h"
 #include "grilunsol.h"
+
+/*
+ *Minimum size includes:
+ * - number of cells = 4 bytes
+ * - header of 3 ints + uint64 timestamp = 24 bytes
+ * - CellInfo_GSM:
+ *     - 4 ints for GSM ident == 16 byes
+ *     - 2 ints for GSM signal strength = 16 bytes
+ */
+#define MIN_CELL_INFO_LIST_SIZE 56
 
 /* Minimum size is two int32s version/number of calls */
 #define MIN_DATA_CALL_LIST_SIZE 8
@@ -47,6 +58,147 @@
  * TZ '(+/-)tz,dt' are optional
  */
 #define MIN_NITZ_SIZE 17
+
+GSList *g_ril_unsol_parse_cell_info_list(GRil *gril,
+						const struct ril_msg *message)
+{
+	struct parcel rilp;
+	GSList *l = NULL;
+	struct ofono_cell *cell;
+	unsigned int time_type, tmp;
+	unsigned int num_cells = 0;
+	unsigned int signal_strength, error_rate;
+
+	DBG("%d", (int) message->buf_len);
+
+	g_ril_append_print_buf(gril, "{");
+
+	if (message->buf_len == 0) {
+		g_ril_append_print_buf(gril, "}");
+		goto done;
+	}
+
+	/* Can happen for RIL_REQUEST_DATA_CALL_LIST replies */
+	if (message->buf_len < MIN_CELL_INFO_LIST_SIZE) {
+		ofono_error("%s: message too small: %d",
+				__func__,
+				(int) message->buf_len);
+		goto error;
+	}
+
+	g_ril_init_parcel(message, &rilp);
+
+	// read number of cells
+	num_cells = parcel_r_int32(&rilp);
+	DBG("num cells is: %d", num_cells);
+
+	while (num_cells-- && parcel_data_avail(&rilp)) {
+
+		cell = g_try_new0(struct ofono_cell, 1);
+		if (cell == NULL) {
+			ofono_error("%s: out of memory", __func__);
+			goto error;
+		}
+
+		cell->type = parcel_r_int32(&rilp);
+		cell->registered = parcel_r_int32(&rilp);
+		time_type = parcel_r_int32(&rilp);
+		tmp = parcel_r_int32(&rilp);  // discard 1/2 timestamp
+
+		/* TODO: fix, need way to ignore without compiler error!! */
+		DBG("%u", tmp);
+		tmp = parcel_r_int32(&rilp);  // discard 2/2 timestamp
+
+		/* TODO: fix, need way to ignore without compiler error!! */
+		DBG("%u", tmp);
+		cell->mcc = parcel_r_int32(&rilp);
+		cell->mnc = parcel_r_int32(&rilp);
+
+		g_ril_append_print_buf(gril,
+					"%s [type=%s,registered=%u,time_type=%u,"
+					"mcc=%u,mnc=%u,",
+					print_buf,
+					ril_cell_info_type_to_string(cell->type),
+					cell->registered,
+					time_type,
+					cell->mcc,
+					cell->mnc);
+
+		switch(cell->type) {
+		case RIL_CELL_INFO_GSM:
+			cell->gsm.lac = parcel_r_int32(&rilp);
+			cell->gsm.cid = parcel_r_int32(&rilp);
+
+			signal_strength = parcel_r_int32(&rilp);
+			error_rate = parcel_r_int32(&rilp);
+
+			g_ril_append_print_buf(gril,
+						"%s lac=%u,cid=%u"
+						"signal=%u,ber=%u]",
+						print_buf,
+						cell->gsm.lac,
+						cell->gsm.cid,
+						signal_strength,
+						error_rate);
+			break;
+
+		case RIL_CELL_INFO_WCDMA:
+			cell->wcdma.lac = parcel_r_int32(&rilp);
+			cell->wcdma.cid = parcel_r_int32(&rilp);
+			cell->wcdma.psc = parcel_r_int32(&rilp);
+
+			signal_strength = parcel_r_int32(&rilp);
+			error_rate = parcel_r_int32(&rilp);
+
+			g_ril_append_print_buf(gril,
+						"%s lac=%u,cid=%u,psc=%u,"
+						"signal=%u,ber=%u]",
+						print_buf,
+						cell->wcdma.lac,
+						cell->wcdma.cid,
+						cell->wcdma.psc,
+						signal_strength,
+						error_rate);
+
+			break;
+
+		case RIL_CELL_INFO_CDMA:
+			ofono_error("%s: Unsupported cell-info type CDMA", __func__);
+			goto error;
+
+		case RIL_CELL_INFO_LTE:
+			ofono_error("%s: Unsupported cell-info type LTE", __func__);
+			goto error;
+
+		default:
+			ofono_error("%s: Unsupported cell-info type: %d", __func__, cell->type);
+			goto error;
+		}
+
+		/* malformed check */
+		if (rilp.malformed) {
+			ofono_error("%s: malformed parcel received", __func__);
+			goto error;
+		}
+
+		l = g_slist_prepend(l, cell);
+	}
+
+done:
+	if (message->unsolicited)
+		g_ril_print_unsol(gril, message);
+	else
+		g_ril_print_response(gril, message);
+
+	l = g_slist_reverse(l);
+
+	return l;
+error:
+	if (l)
+		g_slist_free_full(l, g_free);
+
+	return NULL;
+}
 
 static gint data_call_compare(gconstpointer a, gconstpointer b)
 {

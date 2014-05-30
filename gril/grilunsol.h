@@ -24,12 +24,18 @@
 #define __GRILUNSOL_H
 
 #include <ofono/types.h>
+#include <ofono/cell-info.h>
 
 #include "gril.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct ril_cell_info_list {
+	guint version;
+	GSList *cells;
+};
 
 struct ril_data_call {
 	guint status;
@@ -64,8 +70,10 @@ struct unsol_ussd {
 	char *message;
 };
 
-void g_ril_unsol_free_data_call_list(struct ril_data_call_list *data_call_list);
+GSList *g_ril_unsol_parse_cell_info_list(GRil *gril,
+						const struct ril_msg *message);
 
+void g_ril_unsol_free_data_call_list(struct ril_data_call_list *data_call_list);
 
 struct ril_data_call_list *g_ril_unsol_parse_data_call_list(GRil *gril,
 						const struct ril_msg *message);
