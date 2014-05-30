@@ -121,3 +121,52 @@ Neighbor cell measurement results
 		byte Pathloss [UTRA-FDD, optional]
 			Measured path loss in dB.
 				Values: 46...173
+
+Methods	aa{sv} GetCellInfoList()
+
+			Calling this procedure returns properties of serving
+			and neighbouring cells in GSM, WCDMA and LTE networks.
+			This method returns a much less detailed set of
+                        attributes compared to the AquireMeasurements method.
+
+			Possible errors: org.ofono.Error.Failed
+
+		string Type
+			Radio access network type of cell information.
+			The possible values are:
+
+			"gsm" The cell info represents a GSM cell.
+			"wcdma" The cell info represents a WCDMA cell.
+				Network.
+
+		uint16 MobileCountryCode
+			Mobile Country Code of the cell. Possible values:
+				Values: 0...999
+
+		uint16 MobileNetworkCode
+			Mobile Network Code of the cell.
+				Values: 0...999
+
+		uint16 LocationAreaCode [GSM/WCDMA]
+			Location area code of serving cell.
+				Values: 0...65535; INT_MAX if unknown.
+
+		uint16 CellId [GSM]
+			GSM Cell Identity - TS 27.007.
+				Values: 0...65535
+
+		uint32 UniqueCellId [WCDMA]
+			28-bit UMTS Cell Identity.
+				Values: 0...268435455
+
+		uint16 ScramblingCode [WCDMA]
+			9-bit Primary scrambling code - TS 25.331.
+				Values: 0...511
+
+		uint16 SignalStrength
+                       Signal strength as defined in TS 27.007 8.5
+		       Values: 0-31, 99
+
+		uint16 BitErrorRate
+                        Bit error rate as defined in TS 27.007 8.5
+                        Values: 0-7, 99
