@@ -42,6 +42,33 @@ struct ofono_cell_info;
 #define OFONO_MAX_MEASURED_CELL_COUNT 32
 #define OFONO_MAX_MEAS_RES_LIST_COUNT 8
 
+
+
+struct gsm_cell {
+	uint16_t lac;
+	uint16_t cid;
+};
+
+struct wcdma_cell {
+	uint16_t lac;
+	uint32_t cid;
+	uint16_t psc;
+};
+
+// TODO: add lte_cell
+
+struct ofono_cell {
+	uint16_t type;
+	uint16_t registered;
+	uint16_t mcc;
+	uint16_t mnc;
+
+	union {
+		struct gsm_cell gsm;
+		struct wcdma_cell wcdma;
+	};
+};
+
 struct geran {
 	uint16_t lac;
 	uint16_t ci;
@@ -79,7 +106,7 @@ struct utran {
 	struct measured_results_list mrl[OFONO_MAX_MEAS_RES_LIST_COUNT];
 };
 
-struct ofono_cell_info_results {
+struct ofono_cell_info_measurements {
 
 	char mcc[OFONO_MAX_MCC_LENGTH + 1];
 	char mnc[OFONO_MAX_MNC_LENGTH + 1];
@@ -92,9 +119,14 @@ struct ofono_cell_info_results {
 
 };
 
+typedef void (*ofono_cell_info_query_list_cb_t)
+		(const struct ofono_error *error,
+			GSList *list, void *data);
 
-typedef void (*ofono_cell_info_query_cb_t)(const struct ofono_error *error,
-	      struct ofono_cell_info_results *results, void *data);
+typedef void (*ofono_cell_info_query_measurements_cb_t)
+		(const struct ofono_error *error,
+			struct ofono_cell_info_measurements *results,
+			void *data);
 
 struct ofono_cell_info_driver {
 	const char *name;
@@ -103,8 +135,12 @@ struct ofono_cell_info_driver {
 			void *data);
 	void (*remove)(struct ofono_cell_info *ci);
 
-	void (*query)(struct ofono_cell_info *ci,
-			ofono_cell_info_query_cb_t cb,
+	void (*query_list)(struct ofono_cell_info *ci,
+			ofono_cell_info_query_list_cb_t cb,
+			void *data);
+
+	void (*query_measurements)(struct ofono_cell_info *ci,
+			ofono_cell_info_query_measurements_cb_t cb,
 			void *data);
 };
 
