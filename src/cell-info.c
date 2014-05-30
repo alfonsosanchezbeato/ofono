@@ -42,14 +42,21 @@ struct ofono_cell_info {
 };
 
 
-static DBusMessage *ci_get_cells(DBusConnection *, DBusMessage *, void *);
+static DBusMessage *ci_aquire(DBusConnection *, DBusMessage *, void *);
+static DBusMessage *ci_get_cell_info_list(DBusConnection *, DBusMessage *,
+						void *);
 
 static GSList *g_drivers = NULL;
+
+/* TODO: how does ASYNC_METHOD differ??? */
 
 static GDBusMethodTable ci_methods[] = {
 	{ GDBUS_ASYNC_METHOD("AquireMeasurement",
 				NULL, GDBUS_ARGS({ "properties", "aa{sv}" }),
-				ci_get_cells) },
+				ci_aquire) },
+	{ GDBUS_ASYNC_METHOD("GetCellInfoList",
+				NULL, GDBUS_ARGS({ "properties", "aa{sv}" }),
+				ci_get_cell_info_list) },
 	{ }
 };
 
@@ -178,7 +185,7 @@ void ofono_cell_info_set_data(struct ofono_cell_info *ci, void *cid)
 }
 
 static int append_geran_meta_data(DBusMessageIter *iter,
-	     struct ofono_cell_info_results *ci)
+	     struct ofono_cell_info_measurements *ci)
 {
 	DBusMessageIter iter_array;
 	const char *type = "GERAN";
@@ -242,7 +249,7 @@ static void add_geran_neighbor(DBusMessageIter *iter,
 }
 
 static int fill_geran_ci(DBusMessageIter *iter,
-	      struct ofono_cell_info_results *ci)
+	      struct ofono_cell_info_measurements *ci)
 {
 	int i;
 
@@ -330,7 +337,7 @@ static int append_utra_neighbors(DBusMessageIter *iter,
 }
 
 static void append_utran_meta_data(DBusMessageIter *iter,
-	     struct ofono_cell_info_results *ci)
+	     struct ofono_cell_info_measurements *ci)
 {
 	DBusMessageIter iter_array;
 	const char *type = "UTRA-FDD";
@@ -370,7 +377,7 @@ static void append_utran_meta_data(DBusMessageIter *iter,
 }
 
 static int fill_utra_ci(DBusMessageIter *iter,
-			struct ofono_cell_info_results *ci)
+			struct ofono_cell_info_measurements *ci)
 {
 
 	append_utran_meta_data(iter, ci);
@@ -379,8 +386,8 @@ static int fill_utra_ci(DBusMessageIter *iter,
 	return 0;
 }
 
-static void ofono_neigh_cell_info_query_cb(const struct ofono_error *error,
-				struct ofono_cell_info_results *ci_results,
+static void cell_info_aquire_cb(const struct ofono_error *error,
+				struct ofono_cell_info_measurements *ci_results,
 				void *data)
 {
 	struct ofono_cell_info *ci = data;
@@ -438,14 +445,76 @@ error:
 
 }
 
-static DBusMessage *ci_get_cells(DBusConnection *conn, DBusMessage *msg,
+static DBusMessage *ci_aquire(DBusConnection *conn, DBusMessage *msg,
 					void *data)
 {
 	struct ofono_cell_info *ci = data;
 	DBG("");
 
-	ci->pending = dbus_message_ref(msg);
-	ci->driver->query(ci, ofono_neigh_cell_info_query_cb, ci->driver_data);
+	if (ci->driver->query_measurements) {
 
-	return NULL;
+		/* TODO: handle multple pending calls */
+		ci->pending = dbus_message_ref(msg);
+		ci->driver->query_measurements(ci, cell_info_aquire_cb,
+						ci->driver_data);
+		return NULL;
+	} else {
+		return __ofono_error_not_implemented(msg);
+	}
+}
+
+static void cell_info_list_cb(const struct ofono_error *error, GSList *list,
+				void *data)
+{
+	struct ofono_cell_info *ci = data;
+	DBusMessage *msg = ci->pending;
+	DBusMessage *reply;
+	DBusMessageIter iter, iter_array;
+
+	DBG("");
+
+	if (error->type != OFONO_ERROR_TYPE_NO_ERROR) {
+		ofono_error("Neighbor cell info query failed");
+		goto error;
+	}
+
+	reply = dbus_message_new_method_return(msg);
+	if (reply == NULL) {
+		ofono_error("Failed to create response");
+		goto error;
+	}
+
+	dbus_message_iter_init_append(reply, &iter);
+	dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY,
+						"a{sv}",
+						&iter_array);
+
+	dbus_message_iter_close_container(&iter, &iter_array);
+	__ofono_dbus_pending_reply(&msg, reply);
+	return;
+
+error:
+	reply = __ofono_error_failed(msg);
+	__ofono_dbus_pending_reply(&msg, reply);
+	return;
+
+}
+
+static DBusMessage *ci_get_cell_info_list(DBusConnection *conn,
+						DBusMessage *msg,
+						void *data)
+{
+	struct ofono_cell_info *ci = data;
+	DBG("");
+
+	if (ci->driver->query_list) {
+
+		/* TODO: handle multple pending calls */
+		ci->pending = dbus_message_ref(msg);
+		ci->driver->query_list(ci, cell_info_list_cb,
+					ci->driver_data);
+		return NULL;
+	} else {
+		return __ofono_error_not_implemented(msg);
+	}
 }
