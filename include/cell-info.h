@@ -42,7 +42,8 @@ struct ofono_cell_info;
 #define OFONO_MAX_MEASURED_CELL_COUNT 32
 #define OFONO_MAX_MEAS_RES_LIST_COUNT 8
 
-
+#define GSM_TYPE 1
+#define WCDMA_TYPE 41
 
 struct gsm_cell {
 	uint16_t lac;
