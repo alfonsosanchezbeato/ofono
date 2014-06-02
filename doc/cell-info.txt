@@ -141,19 +141,19 @@ Methods	aa{sv} GetCellInfoList()
 
 		uint16 MobileCountryCode
 			Mobile Country Code of the cell. Possible values:
-				Values: 0...999
+				Values: 0...999; 65535 if unknown.
 
 		uint16 MobileNetworkCode
 			Mobile Network Code of the cell.
-				Values: 0...999
+				Values: 0...999; 65535 if unknown.
 
 		uint16 LocationAreaCode [GSM/WCDMA]
 			Location area code of serving cell.
-				Values: 0...65535; INT_MAX if unknown.
+				Values: 0...65535; 65535 if unknown.
 
 		uint16 CellId [GSM]
 			GSM Cell Identity - TS 27.007.
-				Values: 0...65535
+				Values: 0...65535; 65535 if unknown.
 
 		uint32 UniqueCellId [WCDMA]
 			28-bit UMTS Cell Identity.
@@ -161,7 +161,7 @@ Methods	aa{sv} GetCellInfoList()
 
 		uint16 ScramblingCode [WCDMA]
 			9-bit Primary scrambling code - TS 25.331.
-				Values: 0...511
+				Values: 0...511; 65535 if unknown.
 
 		uint16 SignalStrength
                        Signal strength as defined in TS 27.007 8.5
