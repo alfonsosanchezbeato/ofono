@@ -115,17 +115,17 @@ GSList *g_ril_unsol_parse_cell_info_list(GRil *gril,
 		cell->mnc = parcel_r_int32(&rilp);
 
 		g_ril_append_print_buf(gril,
-					"%s [type=%s,registered=%u,time_type=%u,"
+					"%s [type=%u,registered=%u,time_type=%u,"
 					"mcc=%u,mnc=%u,",
 					print_buf,
-					ril_cell_info_type_to_string(cell->type),
+					cell->type,
 					cell->registered,
 					time_type,
 					cell->mcc,
 					cell->mnc);
 
 		switch(cell->type) {
-		case RIL_CELL_INFO_GSM:
+		case RIL_CELL_INFO_TYPE_GSM:
 			cell->gsm.lac = parcel_r_int32(&rilp);
 			cell->gsm.cid = parcel_r_int32(&rilp);
 
@@ -142,7 +142,7 @@ GSList *g_ril_unsol_parse_cell_info_list(GRil *gril,
 						error_rate);
 			break;
 
-		case RIL_CELL_INFO_WCDMA:
+		case RIL_CELL_INFO_TYPE_WCDMA:
 			cell->wcdma.lac = parcel_r_int32(&rilp);
 			cell->wcdma.cid = parcel_r_int32(&rilp);
 			cell->wcdma.psc = parcel_r_int32(&rilp);
@@ -162,11 +162,11 @@ GSList *g_ril_unsol_parse_cell_info_list(GRil *gril,
 
 			break;
 
-		case RIL_CELL_INFO_CDMA:
+		case RIL_CELL_INFO_TYPE_CDMA:
 			ofono_error("%s: Unsupported cell-info type CDMA", __func__);
 			goto error;
 
-		case RIL_CELL_INFO_LTE:
+		case RIL_CELL_INFO_TYPE_LTE:
 			ofono_error("%s: Unsupported cell-info type LTE", __func__);
 			goto error;
 
