@@ -24,6 +24,7 @@
 #endif
 
 #include <errno.h>
+#include <stdio.h>
 
 #include <glib.h>
 #include <gdbus.h>
@@ -464,12 +465,10 @@ static DBusMessage *ci_aquire(DBusConnection *conn, DBusMessage *msg,
 	}
 }
 
-static int fill_cell_info(DBusMessageIter *iter, struct cell_info *ci)
+static int fill_cell_info(DBusMessageIter *iter, struct ofono_cell *ci)
 {
 	DBusMessageIter iter_array;
 	const char *type;
-	const char *mcc = ci->mcc;
-	const char *mnc = ci->mnc;
 
 	dbus_message_iter_open_container(iter, DBUS_TYPE_ARRAY,
 						"{sv}",
@@ -485,12 +484,12 @@ static int fill_cell_info(DBusMessageIter *iter, struct cell_info *ci)
 				&type);
 
 	ofono_dbus_dict_append(&iter_array, "MobileNetworkCode",
-				DBUS_TYPE_STRING,
-				&mnc);
+				DBUS_TYPE_UINT16,
+				&ci->mnc);
 
 	ofono_dbus_dict_append(&iter_array, "MobileCountryCode",
-				DBUS_TYPE_STRING,
-				&mcc);
+				DBUS_TYPE_UINT16,
+				&ci->mcc);
 
 	if (ci->type == GSM_TYPE) {
 		ofono_dbus_dict_append(&iter_array, "LocationAreaCode",
@@ -526,6 +525,7 @@ static void cell_info_list_cb(const struct ofono_error *error, GSList *list,
 	DBusMessage *msg = ci->pending;
 	DBusMessage *reply;
 	DBusMessageIter iter, iter_array;
+	GSList *cell_i;
 
 	DBG("");
 
@@ -545,7 +545,10 @@ static void cell_info_list_cb(const struct ofono_error *error, GSList *list,
 						"a{sv}",
 						&iter_array);
 
-	g_slist_foreach(list, fill_cell_info);
+	for (cell_i = list; cell_i; cell_i = cell_i->next) {
+		struct ofono_cell *cell = cell_i->data;
+		fill_cell_info(&iter_array, cell);
+	}
 
 	dbus_message_iter_close_container(&iter, &iter_array);
 	__ofono_dbus_pending_reply(&msg, reply);
@@ -572,8 +575,7 @@ static DBusMessage *ci_get_cell_info_list(DBusConnection *conn,
 
 		/* TODO: handle multple pending calls */
 		ci->pending = dbus_message_ref(msg);
-		ci->driver->query_list(ci, cell_info_list_cb,
-					ci->driver_data);
+		ci->driver->query_list(ci, cell_info_list_cb, ci);
 		return NULL;
 	} else {
 		return __ofono_error_not_implemented(msg);
