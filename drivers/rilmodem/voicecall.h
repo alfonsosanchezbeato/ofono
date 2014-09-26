@@ -32,6 +32,7 @@ struct ril_voicecall_data {
 	void *data;
 	gchar *tone_queue;
 	gboolean tone_pending;
+	guint delayed_reg_cb_id;
 };
 
 int ril_voicecall_probe(struct ofono_voicecall *vc, unsigned int vendor,
@@ -67,5 +68,6 @@ void ril_voicecall_start(struct ril_voicecall_driver_data *driver_data,
 				struct ofono_voicecall *vc,
 				unsigned int vendor,
 				struct ril_voicecall_data *vd);
+void ril_voicecall_cleanup(struct ofono_voicecall *vc);
 void ril_call_state_notify(struct ril_msg *message, gpointer user_data);
 gboolean ril_poll_clcc(gpointer user_data);

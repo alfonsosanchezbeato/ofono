@@ -52,6 +52,11 @@
  * unsolicited events.
  */
 
+struct mtk_voicecall_data {
+	struct ril_voicecall_data rvd;
+	guint mtk_delayed_reg_cb_id;
+};
+
 static void mtk_set_indication_cb(struct ril_msg *message, gpointer user_data)
 {
 	struct ofono_voicecall *vc = user_data;
@@ -91,14 +96,16 @@ static void mtk_incoming_notify(struct ril_msg *message, gpointer user_data)
 static gboolean mtk_delayed_register(gpointer user_data)
 {
 	struct ofono_voicecall *vc = user_data;
-	struct ril_voicecall_data *vd = ofono_voicecall_get_data(vc);
+	struct mtk_voicecall_data *mvd = ofono_voicecall_get_data(vc);
+
+	mvd->mtk_delayed_reg_cb_id = 0;
 
 	/* MTK generates this event instead of CALL_STATE_CHANGED */
-	g_ril_register(vd->ril, MTK_RIL_UNSOL_CALL_PROGRESS_INFO,
+	g_ril_register(mvd->rvd.ril, MTK_RIL_UNSOL_CALL_PROGRESS_INFO,
 			ril_call_state_notify, vc);
 
 	/* Indicates incoming call, before telling the network our state */
-	g_ril_register(vd->ril, MTK_RIL_UNSOL_INCOMING_CALL_INDICATION,
+	g_ril_register(mvd->rvd.ril, MTK_RIL_UNSOL_INCOMING_CALL_INDICATION,
 			mtk_incoming_notify, vc);
 
 	/* This makes the timeout a single-shot */
@@ -109,27 +116,39 @@ static int mtk_voicecall_probe(struct ofono_voicecall *vc, unsigned int vendor,
 				void *data)
 {
 	struct ril_voicecall_driver_data *driver_data = data;
-	struct ril_voicecall_data *vd;
+	struct mtk_voicecall_data *mvd;
 
-	vd = g_try_new0(struct ril_voicecall_data, 1);
-	if (vd == NULL)
+	mvd = g_try_new0(struct mtk_voicecall_data, 1);
+	if (mvd == NULL)
 		return -ENOMEM;
 
-	ril_voicecall_start(driver_data, vc, vendor, vd);
+	ril_voicecall_start(driver_data, vc, vendor, &mvd->rvd);
 
 	/*
 	 * Register events after ofono_voicecall_register() is called from
 	 * ril_delayed_register().
 	 */
-	g_idle_add(mtk_delayed_register, vc);
+	mvd->mtk_delayed_reg_cb_id = g_idle_add(mtk_delayed_register, vc);
 
 	return 0;
+}
+
+static void mtk_voicecall_remove(struct ofono_voicecall *vc)
+{
+	struct mtk_voicecall_data *mvd = ofono_voicecall_get_data(vc);
+
+	if (mvd->mtk_delayed_reg_cb_id != 0)
+		g_source_remove(mvd->mtk_delayed_reg_cb_id);
+
+	ril_voicecall_cleanup(vc);
+
+	g_free(mvd);
 }
 
 static struct ofono_voicecall_driver driver = {
 	.name			= MTKMODEM,
 	.probe			= mtk_voicecall_probe,
-	.remove			= ril_voicecall_remove,
+	.remove			= mtk_voicecall_remove,
 	.dial			= ril_dial,
 	.answer			= ril_answer,
 	.hangup_all		= ril_hangup_all,

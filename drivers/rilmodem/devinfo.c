@@ -41,6 +41,11 @@
 #include "rilmodem.h"
 #include "grilreply.h"
 
+struct devinfo_data {
+	GRil *ril;
+	guint delayed_reg_cb_id;
+};
+
 /*
  * TODO: The functions in this file are stubbed out, and
  * will need to be re-worked to talk to the /gril layer
@@ -104,10 +109,10 @@ static void ril_query_revision(struct ofono_devinfo *info,
 				ofono_devinfo_query_cb_t cb,
 				void *data)
 {
-	GRil *ril = ofono_devinfo_get_data(info);
-	struct cb_data *cbd = cb_data_new(cb, data, ril);
+	struct devinfo_data *did = ofono_devinfo_get_data(info);
+	struct cb_data *cbd = cb_data_new(cb, data, did->ril);
 
-	if (g_ril_send(ril, RIL_REQUEST_BASEBAND_VERSION, NULL,
+	if (g_ril_send(did->ril, RIL_REQUEST_BASEBAND_VERSION, NULL,
 			query_revision_cb, cbd, g_free) == 0) {
 		g_free(cbd);
 		CALLBACK_WITH_FAILURE(cb, NULL, data);
@@ -141,15 +146,15 @@ static void ril_query_serial(struct ofono_devinfo *info,
 				ofono_devinfo_query_cb_t cb,
 				void *data)
 {
-	GRil *ril = ofono_devinfo_get_data(info);
-	struct cb_data *cbd = cb_data_new(cb, data, ril);
+	struct devinfo_data *did = ofono_devinfo_get_data(info);
+	struct cb_data *cbd = cb_data_new(cb, data, did->ril);
 
 	/*
 	 * TODO: make it support both RIL_REQUEST_GET_IMEI (deprecated) and
 	 * RIL_REQUEST_DEVICE_IDENTITY depending on the rild version used
 	 */
 
-	if (g_ril_send(ril, RIL_REQUEST_GET_IMEI, NULL,
+	if (g_ril_send(did->ril, RIL_REQUEST_GET_IMEI, NULL,
 			query_serial_cb, cbd, g_free) == 0) {
 		g_free(cbd);
 		CALLBACK_WITH_FAILURE(cb, NULL, data);
@@ -159,7 +164,10 @@ static void ril_query_serial(struct ofono_devinfo *info,
 static gboolean ril_delayed_register(gpointer user_data)
 {
 	struct ofono_devinfo *info = user_data;
-	DBG("");
+	struct devinfo_data *did = ofono_devinfo_get_data(info);
+
+	did->delayed_reg_cb_id = 0;
+
 	ofono_devinfo_register(info);
 
 	/* This makes the timeout a single-shot */
@@ -169,12 +177,16 @@ static gboolean ril_delayed_register(gpointer user_data)
 static int ril_devinfo_probe(struct ofono_devinfo *info, unsigned int vendor,
 				void *data)
 {
-	GRil *ril = NULL;
+	GRil *ril = data;
+	struct devinfo_data *did;
 
-	if (data != NULL)
-		ril = g_ril_clone(data);
+	did = g_new0(struct devinfo_data, 1);
+	if (did == NULL)
+		return -ENOMEM;
 
-	ofono_devinfo_set_data(info, ril);
+	did->ril = g_ril_clone(ril);
+
+	ofono_devinfo_set_data(info, did);
 
 	/*
 	 * ofono_devinfo_register() needs to be called after
@@ -183,18 +195,22 @@ static int ril_devinfo_probe(struct ofono_devinfo *info, unsigned int vendor,
 	 * some kind of capabilities query to the modem, and then
 	 * call register in the callback; we use an idle event instead.
 	 */
-	g_idle_add(ril_delayed_register, info);
+	did->delayed_reg_cb_id = g_idle_add(ril_delayed_register, info);
 
 	return 0;
 }
 
 static void ril_devinfo_remove(struct ofono_devinfo *info)
 {
-	GRil *ril = ofono_devinfo_get_data(info);
+	struct devinfo_data *did = ofono_devinfo_get_data(info);
+
+	if (did->delayed_reg_cb_id != 0)
+		g_source_remove(did->delayed_reg_cb_id);
 
 	ofono_devinfo_set_data(info, NULL);
 
-	g_ril_unref(ril);
+	g_ril_unref(did->ril);
+	g_free(did);
 }
 
 static struct ofono_devinfo_driver driver = {

@@ -48,6 +48,7 @@
 struct cv_data {
 	GRil *ril;
 	unsigned int vendor;
+	guint delayed_reg_cb_id;
 };
 
 static void volume_mute_cb(struct ril_msg *message, gpointer user_data)
@@ -105,9 +106,8 @@ static void probe_mute_cb(struct ril_msg *message, gpointer user_data)
 	ofono_call_volume_set_muted(cv, muted);
 }
 
-static void call_probe_mute(gpointer user_data)
+static void call_probe_mute(struct ofono_call_volume *cv)
 {
-	struct ofono_call_volume *cv = user_data;
 	struct cv_data *cvd = ofono_call_volume_get_data(cv);
 
 	g_ril_send(cvd->ril, RIL_REQUEST_GET_MUTE, NULL,
@@ -117,11 +117,15 @@ static void call_probe_mute(gpointer user_data)
 static gboolean ril_delayed_register(gpointer user_data)
 {
 	struct ofono_call_volume *cv = user_data;
+	struct cv_data *cvd = ofono_call_volume_get_data(cv);
+
 	DBG("");
 	ofono_call_volume_register(cv);
 
+	cvd->delayed_reg_cb_id = 0;
+
 	/* Probe the mute state */
-	call_probe_mute(user_data);
+	call_probe_mute(cv);
 
 	/* This makes the timeout a single-shot */
 	return FALSE;
@@ -149,7 +153,7 @@ static int ril_call_volume_probe(struct ofono_call_volume *cv,
 	 * some kind of capabilities query to the modem, and then
 	 * call register in the callback; we use an idle event instead.
 	 */
-	g_idle_add(ril_delayed_register, cv);
+	cvd->delayed_reg_cb_id = g_idle_add(ril_delayed_register, cv);
 
 	return 0;
 }
@@ -157,6 +161,9 @@ static int ril_call_volume_probe(struct ofono_call_volume *cv,
 static void ril_call_volume_remove(struct ofono_call_volume *cv)
 {
 	struct cv_data *cvd = ofono_call_volume_get_data(cv);
+
+	if (cvd->delayed_reg_cb_id != 0)
+		g_source_remove(cvd->delayed_reg_cb_id);
 
 	ofono_call_volume_set_data(cv, NULL);
 

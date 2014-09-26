@@ -710,6 +710,8 @@ static gboolean ril_delayed_register(gpointer user_data)
 	struct ril_voicecall_data *vd = ofono_voicecall_get_data(vc);
 	ofono_voicecall_register(vc);
 
+	vd->delayed_reg_cb_id = 0;
+
 	/* Initialize call list */
 	ril_poll_clcc(vc);
 
@@ -750,7 +752,7 @@ void ril_voicecall_start(struct ril_voicecall_driver_data *driver_data,
 	 * some kind of capabilities query to the modem, and then
 	 * call register in the callback; we use an idle event instead.
 	 */
-	g_idle_add(ril_delayed_register, vc);
+	vd->delayed_reg_cb_id = g_idle_add(ril_delayed_register, vc);
 }
 
 int ril_voicecall_probe(struct ofono_voicecall *vc, unsigned int vendor,
@@ -768,12 +770,15 @@ int ril_voicecall_probe(struct ofono_voicecall *vc, unsigned int vendor,
 	return 0;
 }
 
-void ril_voicecall_remove(struct ofono_voicecall *vc)
+void ril_voicecall_cleanup(struct ofono_voicecall *vc)
 {
 	struct ril_voicecall_data *vd = ofono_voicecall_get_data(vc);
 
 	if (vd->clcc_source)
 		g_source_remove(vd->clcc_source);
+
+	if (vd->delayed_reg_cb_id != 0)
+		g_source_remove(vd->delayed_reg_cb_id);
 
 	g_slist_foreach(vd->calls, (GFunc) g_free, NULL);
 	g_slist_free(vd->calls);
@@ -782,6 +787,14 @@ void ril_voicecall_remove(struct ofono_voicecall *vc)
 
 	g_ril_unref(vd->ril);
 	g_free(vd->tone_queue);
+}
+
+void ril_voicecall_remove(struct ofono_voicecall *vc)
+{
+	struct ril_voicecall_data *vd = ofono_voicecall_get_data(vc);
+
+	ril_voicecall_cleanup(vc);
+
 	g_free(vd);
 }
 
