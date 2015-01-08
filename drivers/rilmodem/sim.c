@@ -91,6 +91,9 @@ struct sim_data {
 	struct ofono_modem *modem;
 	ofono_sim_state_event_cb_t ril_state_watch;
 	ofono_bool_t unlock_pending;
+	ofono_sim_lock_unlock_cb_t pending_cb;
+	void *pending_data;
+	gboolean pending_success;
 };
 
 struct change_state_cbd {
@@ -684,8 +687,22 @@ static void sim_status_cb(struct ril_msg *message, gpointer user_data)
 		struct reply_sim_app *app = status->apps[search_index];
 
 		if (app->app_type != RIL_APPTYPE_UNKNOWN) {
+			enum ofono_sim_password_type old_passwd_state =
+							sd->passwd_state;
+
 			configure_active_app(sd, app, search_index);
 			DBG("passwd_state: %d", sd->passwd_state);
+
+			if (sd->pending_cb != NULL &&
+					old_passwd_state != sd->passwd_state) {
+				if (sd->pending_success)
+					CALLBACK_WITH_SUCCESS(sd->pending_cb,
+							sd->pending_data);
+				else
+					CALLBACK_WITH_FAILURE(sd->pending_cb,
+							sd->pending_data);
+				sd->pending_cb = NULL;
+			}
 
 			/*
 			 * Note: There doesn't seem to be any other way to force
@@ -693,7 +710,7 @@ static void sim_status_cb(struct ril_msg *message, gpointer user_data)
 			 * causes the core to call the this atom's
 			 * query_passwd() function.
 			 */
-			__ofono_sim_recheck_pin(sim);
+			//__ofono_sim_recheck_pin(sim);
 		}
 	}
 
@@ -789,16 +806,64 @@ static void ril_query_pin_retries(struct ofono_sim *sim,
 	}
 }
 
+static void sim_status_query_passwd_cb(struct ril_msg *message, gpointer user_data)
+{
+	struct cb_data *cbd = user_data;
+	ofono_sim_passwd_cb_t cb = cbd->cb;
+	struct ofono_sim *sim = cbd->user;
+	struct sim_data *sd = ofono_sim_get_data(sim);
+	struct reply_sim_status *status;
+	guint search_index;
+
+	status = g_ril_reply_parse_sim_status(sd->ril, message);
+	if (status == NULL) {
+		ofono_error("%s: Cannot parse SIM status reply", __func__);
+		CALLBACK_WITH_FAILURE(cb, -1, cbd->data);
+		return;
+	}
+
+	/* TODO(CDMA): need some kind of logic to set the correct app_index */
+	search_index = status->gsm_umts_index;
+
+	if (status->card_state == RIL_CARDSTATE_PRESENT
+			&& search_index < status->num_apps) {
+		struct reply_sim_app *app = status->apps[search_index];
+
+		if (app->app_type != RIL_APPTYPE_UNKNOWN) {
+			configure_active_app(sd, app, search_index);
+			DBG("passwd_state: %d", sd->passwd_state);
+		}
+	}
+
+	if (sd->passwd_state == OFONO_SIM_PASSWORD_INVALID)
+		CALLBACK_WITH_FAILURE(cb, -1, cbd->data);
+	else
+		CALLBACK_WITH_SUCCESS(cb, sd->passwd_state, cbd->data);
+
+	g_ril_reply_free_sim_status(status);
+}
+
 static void ril_query_passwd_state(struct ofono_sim *sim,
 					ofono_sim_passwd_cb_t cb, void *data)
 {
 	struct sim_data *sd = ofono_sim_get_data(sim);
+	struct cb_data *cbd = cb_data_new(cb, data, sim);
+
+	DBG("passwd_state %u", sd->passwd_state);
+
+	if (g_ril_send(sd->ril, RIL_REQUEST_GET_SIM_STATUS, NULL,
+			sim_status_query_passwd_cb, cbd, g_free) == 0) {
+		g_free(cbd);
+		CALLBACK_WITH_FAILURE(cb, -1, data);
+	}
+
+	/*struct sim_data *sd = ofono_sim_get_data(sim);
 	DBG("passwd_state %u", sd->passwd_state);
 
 	if (sd->passwd_state == OFONO_SIM_PASSWORD_INVALID)
 		CALLBACK_WITH_FAILURE(cb, -1, data);
 	else
-		CALLBACK_WITH_SUCCESS(cb, sd->passwd_state, data);
+		CALLBACK_WITH_SUCCESS(cb, sd->passwd_state, data);*/
 }
 
 static void ril_pin_change_state_cb(struct ril_msg *message, gpointer user_data)
@@ -823,17 +888,27 @@ static void ril_pin_change_state_cb(struct ril_msg *message, gpointer user_data)
 		g_free(retries);
 	}
 
-	/* TODO: re-factor to not use macro for FAILURE;
-	   doesn't return error! */
-	if (message->error == RIL_E_SUCCESS) {
-		CALLBACK_WITH_SUCCESS(cb, cbd->data);
+	if (sd->vendor == OFONO_RIL_VENDOR_MTK) {
+		if (message->error == RIL_E_SUCCESS)
+			CALLBACK_WITH_SUCCESS(cb, cbd->data);
+		else
+			CALLBACK_WITH_FAILURE(cb, cbd->data);
 	} else {
-		CALLBACK_WITH_FAILURE(cb, cbd->data);
-		/*
-		 * Refresh passwd_state (not needed if the unlock is
-		 * successful, as an event will refresh the state in that case)
-		 */
-		send_get_sim_status(sim);
+
+		if (message->error == RIL_E_SUCCESS) {
+			/* Wait for SIM_STATUS_CHANGED (mako) */
+			sd->pending_cb = cb;
+			sd->pending_data = cbd->data;
+			sd->pending_success = TRUE;
+		} else {
+			if (sd->retries[sd->passwd_type] == 0) {
+				sd->pending_cb = cb;
+				sd->pending_data = cbd->data;
+				sd->pending_success = FALSE;
+			} else {
+				CALLBACK_WITH_FAILURE(cb, cbd->data);
+			}
+		}
 	}
 }
 
