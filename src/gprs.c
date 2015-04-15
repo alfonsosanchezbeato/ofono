@@ -1511,9 +1511,14 @@ static void gprs_attached_update(struct ofono_gprs *gprs)
 	attached = gprs->driver_attached &&
 		(gprs->status == NETWORK_REGISTRATION_STATUS_REGISTERED ||
 			gprs->status == NETWORK_REGISTRATION_STATUS_ROAMING);
+			
+	DBG("attached %d gprs->attached %d", attached, gprs->attached);
 
 	if (attached == gprs->attached)
 		return;
+
+	DBG("have active contexts %d flags 0x%X",
+			have_active_contexts(gprs), gprs->flags);
 
 	/*
 	 * If an active context is found, a PPP session might be still active
@@ -2440,6 +2445,8 @@ void ofono_gprs_status_notify(struct ofono_gprs *gprs, int status)
 		return;
 	}
 
+	DBG("flags %d", gprs->flags);
+
 	/*
 	 * If we're already taking action, e.g. attaching or detaching, then
 	 * ignore this notification for now, we will take appropriate action
@@ -2448,13 +2455,19 @@ void ofono_gprs_status_notify(struct ofono_gprs *gprs, int status)
 	if (gprs->flags & GPRS_FLAG_ATTACHING)
 		return;
 
+	DBG("powered %d", gprs->powered);
+
 	/* We registered without being powered */
 	if (gprs->powered == FALSE)
 		goto detach;
 
+	DBG("roaming allowed %d", gprs->roaming_allowed);
+
 	if (gprs->roaming_allowed == FALSE &&
 			status == NETWORK_REGISTRATION_STATUS_ROAMING)
 		goto detach;
+
+	DBG("driver attached %d", gprs->driver_attached);
 
 	gprs->driver_attached = TRUE;
 	gprs_attached_update(gprs);
