@@ -530,7 +530,7 @@ static void ril_sim_update_cyclic(struct ofono_sim *sim, int fileid,
 	update_record(sim, fileid, GRIL_REC_ACCESS_MODE_PREVIOUS, 0,
 			length, value, path, path_len, cb, data);
 }
-
+#if 0
 static void ril_imsi_cb(struct ril_msg *message, gpointer user_data)
 {
 	struct cb_data *cbd = user_data;
@@ -579,7 +579,7 @@ static void ril_read_imsi(struct ofono_sim *sim, ofono_sim_imsi_cb_t cb,
 		CALLBACK_WITH_FAILURE(cb, NULL, data);
 	}
 }
-
+#endif
 static void configure_active_app(struct sim_data *sd,
 					struct reply_sim_app *app,
 					guint index)
@@ -1257,7 +1257,9 @@ static struct ofono_sim_driver driver = {
 	.write_file_transparent	= ril_sim_update_binary,
 	.write_file_linear	= ril_sim_update_record,
 	.write_file_cyclic	= ril_sim_update_cyclic,
- 	.read_imsi		= ril_read_imsi,
+	// Force to read file to the atom instead of using this
+	// to avoid radio not available errors (mtk)
+ 	//.read_imsi		= ril_read_imsi,
 	.query_passwd_state	= ril_query_passwd_state,
 	.send_passwd		= ril_pin_send,
 	.query_pin_retries	= ril_query_pin_retries,
