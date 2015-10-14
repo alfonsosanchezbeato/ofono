@@ -33,6 +33,15 @@ except dbus.exceptions.DBusException as e:
        print("Service org.ofono not found on DBus: {}".format(e))
        exit(1)
 
+try:
+	mng_props = manager.GetProperties()
+	print("[ / ]")
+	for key in mng_props.keys():
+		print("    %s = %s" % (key, mng_props[key]))
+	print("")
+except:
+	print("Cannot retrieve manager properties")
+
 modems = manager.GetModems()
 
 if args.priv:
