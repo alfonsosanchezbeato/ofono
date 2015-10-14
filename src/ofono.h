@@ -29,6 +29,8 @@ void __ofono_exit(void);
 
 int __ofono_manager_init(void);
 void __ofono_manager_cleanup(void);
+struct ofono_modem *__ofono_manager_get_preferred_for_voice(void);
+struct ofono_modem *__ofono_manager_get_preferred_for_sms(void);
 
 int __ofono_handsfree_audio_manager_init(void);
 void __ofono_handsfree_audio_manager_cleanup(void);
