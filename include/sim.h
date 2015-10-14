@@ -193,6 +193,7 @@ void ofono_sim_remove(struct ofono_sim *sim);
 void ofono_sim_set_data(struct ofono_sim *sim, void *data);
 void *ofono_sim_get_data(struct ofono_sim *sim);
 
+const char *ofono_sim_get_iccid(struct ofono_sim *sim);
 const char *ofono_sim_get_imsi(struct ofono_sim *sim);
 const char *ofono_sim_get_mcc(struct ofono_sim *sim);
 const char *ofono_sim_get_mnc(struct ofono_sim *sim);
