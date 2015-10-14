@@ -2268,6 +2268,14 @@ void ofono_sim_remove_file_watch(struct ofono_sim_context *context,
 	sim_fs_file_watch_remove(context, id);
 }
 
+const char *ofono_sim_get_iccid(struct ofono_sim *sim)
+{
+	if (sim == NULL)
+		return NULL;
+
+	return sim->iccid;
+}
+
 const char *ofono_sim_get_imsi(struct ofono_sim *sim)
 {
 	if (sim == NULL)
