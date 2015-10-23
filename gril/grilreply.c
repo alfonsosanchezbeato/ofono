@@ -232,8 +232,7 @@ struct reply_operator *g_ril_reply_parse_operator(GRil *gril,
 
 	g_ril_init_parcel(message, &rilp);
 
-	num_params = parcel_r_int32(&rilp);
-	if (num_params != OPERATOR_NUM_PARAMS) {
+	if ((num_params = parcel_r_int32(&rilp)) != OPERATOR_NUM_PARAMS) {
 		ofono_error("%s: invalid OPERATOR reply: "
 				"number of params is %d; should be 3.",
 				__func__,
@@ -603,9 +602,12 @@ gchar *g_ril_reply_parse_imsi(GRil *gril, const struct ril_msg *message)
 
 	g_ril_init_parcel(message, &rilp);
 
+	/* 15 is the max length of IMSI
+	 * add 4 bytes for string length */
+	/* FIXME: g_assert(message->buf_len <= 19); */
 	imsi = parcel_r_string(&rilp);
 
-	g_ril_append_print_buf(gril, "{%s}", imsi ? imsi : "NULL");
+	g_ril_append_print_buf(gril, "{%s}", imsi);
 	g_ril_print_response(gril, message);
 
 	return imsi;
@@ -641,6 +643,21 @@ struct reply_sim_status *g_ril_reply_parse_sim_status(GRil *gril,
 
 	g_ril_init_parcel(message, &rilp);
 
+	/*
+	 * FIXME: Need to come up with a common scheme for verifying the
+	 * size of RIL message and properly reacting to bad messages.
+	 * This could be a runtime assertion, disconnect, drop/ignore
+	 * the message, ...
+	 *
+	 * 20 is the min length of RIL_CardStatus_v6 as the AppState
+	 * array can be 0-length.
+	 */
+	if (message->buf_len < 20) {
+		ofono_error("Size of SIM_STATUS reply too small: %d bytes",
+			    (int) message->buf_len);
+		return NULL;
+	}
+
 	status = g_new0(struct reply_sim_status, 1);
 
 	status->card_state = parcel_r_int32(&rilp);
@@ -662,9 +679,11 @@ struct reply_sim_status *g_ril_reply_parse_sim_status(GRil *gril,
 	status->ims_index = parcel_r_int32(&rilp);
 	status->num_apps = parcel_r_int32(&rilp);
 
-	if (rilp.malformed)
-		goto error;
-
+	/* TODO:
+	 * How do we handle long (>80 chars) ril_append_print_buf strings?
+	 * Using line wrapping ( via '\' ) introduces spaces in the output.
+	 * Do we just make a style-guide exception for PrintBuf operations?
+	 */
 	g_ril_append_print_buf(gril,
 				"(card_state=%d,universal_pin_state=%d,"
 				"gsm_umts_index=%d,cdma_index=%d,"
@@ -697,14 +716,11 @@ struct reply_sim_status *g_ril_reply_parse_sim_status(GRil *gril,
 		app->app_state = parcel_r_int32(&rilp);
 		app->perso_substate = parcel_r_int32(&rilp);
 
-		/*
-		 * TODO: we need a way to instruct parcel to skip
+		/* TODO: we need a way to instruct parcel to skip
 		 * a string, without allocating memory...
 		 */
-		/* application ID (AID) */
-		app->aid_str = parcel_r_string(&rilp);
-		/* application label */
-		app->app_str = parcel_r_string(&rilp);
+		app->aid_str = parcel_r_string(&rilp); /* application ID (AID) */
+		app->app_str = parcel_r_string(&rilp); /* application label */
 
 		app->pin_replaced = parcel_r_int32(&rilp);
 		app->pin1_state = parcel_r_int32(&rilp);
@@ -719,15 +735,12 @@ struct reply_sim_status *g_ril_reply_parse_sim_status(GRil *gril,
 					app->app_type,
 					app->app_state,
 					app->perso_substate,
-					app->aid_str ? app->aid_str : "NULL",
-					app->app_str ? app->app_str : "NULL",
+					app->aid_str,
+					app->app_str,
 					app->pin_replaced,
 					app->pin1_state,
 					app->pin2_state);
 	}
-
-	if (rilp.malformed)
-		goto error;
 
 done:
 	g_ril_append_print_buf(gril, "%s}", print_buf);
@@ -1195,6 +1208,33 @@ int g_ril_reply_parse_get_preferred_network_type(GRil *gril,
 		case MTK_PREF_NET_TYPE_GSM_WCDMA_LTE:
 		case MTK_PREF_NET_TYPE_GSM_WCDMA_LTE_MMDC:
 			net_type = PREF_NET_TYPE_GSM_WCDMA;
+			break;
+		}
+	} else if (g_ril_vendor(gril) == OFONO_RIL_VENDOR_MTK) {
+		switch (net_type) {
+		case QCOM_PREF_NET_TYPE_TD_SCDMA_WCDMA:
+		case QCOM_PREF_NET_TYPE_TD_SCDMA_WCDMA_LTE:
+			net_type = PREF_NET_TYPE_WCDMA;
+			break;
+		case QCOM_PREF_NET_TYPE_TD_SCDMA_LTE:
+			net_type = PREF_NET_TYPE_LTE_ONLY;
+			break;
+		case QCOM_PREF_NET_TYPE_TD_SCDMA_GSM:
+		case QCOM_PREF_NET_TYPE_TD_SCDMA_GSM_LTE:
+			net_type = PREF_NET_TYPE_GSM_ONLY;
+			break;
+		case QCOM_PREF_NET_TYPE_TD_SCDMA_GSM_WCDMA:
+		case QCOM_PREF_NET_TYPE_TD_SCDMA_GSM_WCDMA_LTE:
+			net_type = PREF_NET_TYPE_GSM_WCDMA;
+			break;
+		case QCOM_PREF_NET_TYPE_TD_SCDMA_CDMA_EVDO_GSM_WCDMA:
+			net_type = PREF_NET_TYPE_CDMA_EVDO_AUTO;
+			break;
+		case QCOM_PREF_NET_TYPE_TD_SCDMA_LTE_CDMA_EVDO_GSM_WCDMA:
+			net_type = PREF_NET_TYPE_LTE_CMDA_EVDO_GSM_WCDMA;
+			break;
+		case QCOM_PREF_NET_TYPE_LTE_CDMA_EVDO_GSM:
+			net_type = PREF_NET_TYPE_LTE_CMDA_EVDO_GSM_WCDMA;
 			break;
 		}
 	}
