@@ -200,6 +200,21 @@ AC_SUBST(CARES_CFLAGS)
 AC_SUBST(CARES_LIBS)
 AM_CONDITIONAL(CARES, test "${enable_cares}" != "no")
 
+AC_ARG_ENABLE(gsettings, AC_HELP_STRING([--disable-gsettings],
+				[disable using gsettings for system settings]),
+						[enable_gsettings=${enableval}])
+if (test "${enable_gsettings}" != "no"); then
+	PKG_CHECK_MODULES(SYSTEMD, libsystemd, dummy=yes,
+					AC_MSG_ERROR(libsystemd is required))
+	PKG_CHECK_MODULES(GIO, gio-2.0, dummy=yes,
+					AC_MSG_ERROR(GIO is required))
+fi
+AC_SUBST(SYSTEMD_CFLAGS)
+AC_SUBST(SYSTEMD_LIBS)
+AC_SUBST(GIO_CFLAGS)
+AC_SUBST(GIO_LIBS)
+AM_CONDITIONAL(GSETTINGS, test "${enable_gsettings}" != "no")
+
 AC_ARG_ENABLE(nettime, AC_HELP_STRING([--disable-nettime],
                                 [disable Nettime plugin]),
                                         [enable_nettime=${enableval}])
