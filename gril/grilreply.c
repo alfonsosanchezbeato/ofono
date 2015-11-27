@@ -1210,7 +1210,7 @@ int g_ril_reply_parse_get_preferred_network_type(GRil *gril,
 			net_type = PREF_NET_TYPE_GSM_WCDMA;
 			break;
 		}
-	} else if (g_ril_vendor(gril) == OFONO_RIL_VENDOR_MTK) {
+	} else if (g_ril_vendor(gril) == OFONO_RIL_VENDOR_QCOM_MSIM) {
 		switch (net_type) {
 		case QCOM_PREF_NET_TYPE_TD_SCDMA_WCDMA:
 		case QCOM_PREF_NET_TYPE_TD_SCDMA_WCDMA_LTE:

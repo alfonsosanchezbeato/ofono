@@ -566,7 +566,9 @@ error:
 	cb(&error, NULL, cbd->data);
 }
 
-static void ril_read_imsi(struct ofono_sim *sim, ofono_sim_imsi_cb_t cb,
+void ril_read_imsi(struct ofono_sim *sim, ofono_sim_imsi_cb_t cb,
+				void *data);
+void ril_read_imsi(struct ofono_sim *sim, ofono_sim_imsi_cb_t cb,
 				void *data)
 {
 	struct sim_data *sd = ofono_sim_get_data(sim);
@@ -639,10 +641,11 @@ static void configure_active_app(struct sim_data *sd,
 		};
 		break;
 	case RIL_APPSTATE_READY:
+	case RIL_APPSTATE_DETECTED:
 		sd->passwd_state = OFONO_SIM_PASSWORD_NONE;
 		break;
 	case RIL_APPSTATE_UNKNOWN:
-	case RIL_APPSTATE_DETECTED:
+	//case RIL_APPSTATE_DETECTED: XXX
 	default:
 		sd->passwd_state = OFONO_SIM_PASSWORD_INVALID;
 		break;
@@ -766,6 +769,18 @@ static void sim_status_cb(struct ril_msg *message, gpointer user_data)
 			 */
 			search_index = sim_select_uicc_subscription(sim,
 									status);
+		}
+
+		if (sd->vendor == OFONO_RIL_VENDOR_QCOM_MSIM) {
+			struct parcel rilp;
+
+			parcel_init(&rilp);
+			parcel_w_string(&rilp, status->apps[0]->aid_str);
+
+			DBG("SENDING RIL_REQUEST_SIM_OPEN_CHANNEL %s", status->apps[0]->aid_str);
+
+			g_ril_send(sd->ril, RIL_REQUEST_SIM_OPEN_CHANNEL, &rilp,
+					NULL, NULL, NULL);
 		}
 
 		if (search_index < status->num_apps) {
@@ -1259,7 +1274,7 @@ static struct ofono_sim_driver driver = {
 	.write_file_transparent	= ril_sim_update_binary,
 	.write_file_linear	= ril_sim_update_record,
 	.write_file_cyclic	= ril_sim_update_cyclic,
-	.read_imsi		= ril_read_imsi,
+	//.read_imsi		= ril_read_imsi,
 	.query_passwd_state	= ril_query_passwd_state,
 	.send_passwd		= ril_pin_send,
 	.query_pin_retries	= ril_query_pin_retries,
