@@ -53,6 +53,7 @@
 #include <ofono/gprs-context.h>
 #include <ofono/audio-settings.h>
 #include <ofono/types.h>
+#include "system-settings.h"
 
 #include "ofono.h"
 #include <common.h>
@@ -1633,6 +1634,8 @@ static gboolean connect_rild(gpointer user_data)
 static int mtk_enable(struct ofono_modem *modem)
 {
 	int ret;
+
+	__ofono_system_settings_get_setting_str(PREFERRED_VOICE_MODEM);
 
 	/* We handle SIM states due to MTK peculiarities */
 	ofono_modem_set_driver_watches_sim(modem, TRUE);
