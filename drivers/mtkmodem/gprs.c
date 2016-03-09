@@ -130,6 +130,8 @@ static void detach_event(struct ril_msg *message, gpointer user_data)
 	struct ofono_gprs *gprs = user_data;
 	struct ril_gprs_data *gd = ofono_gprs_get_data(gprs);
 
+	DBG("");
+
 	g_ril_print_unsol_no_args(gd->ril, message);
 
 	mtk_detach_received(gd->modem);

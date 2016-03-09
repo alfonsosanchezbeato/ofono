@@ -1686,6 +1686,12 @@ static void gprs_attached_update(struct ofono_gprs *gprs)
 	ofono_bool_t attached;
 	dbus_bool_t value;
 
+	DBG("driver_attached %d attached %d flags %d active_context %d status %s bearer %s",
+	    gprs->driver_attached, gprs->attached, gprs->flags,
+	    have_active_contexts(gprs),
+	    registration_status_to_string(gprs->status),
+	    packet_bearer_to_string(gprs->bearer));
+
 	attached = gprs->driver_attached &&
 		(gprs->status == NETWORK_REGISTRATION_STATUS_REGISTERED ||
 			gprs->status == NETWORK_REGISTRATION_STATUS_ROAMING);
@@ -1721,8 +1727,8 @@ static void registration_status_cb(const struct ofono_error *error,
 {
 	struct ofono_gprs *gprs = data;
 
-	DBG("%s error %d status %d", __ofono_atom_get_path(gprs->atom),
-		error->type, status);
+	DBG("%s error %d status %d flags %d", __ofono_atom_get_path(gprs->atom),
+	    error->type, status, gprs->flags);
 
 	gprs->flags &= ~GPRS_FLAG_ATTACHING;
 
@@ -1743,6 +1749,12 @@ static void gprs_attach_callback(const struct ofono_error *error, void *data)
 
 	DBG("%s error = %d", __ofono_atom_get_path(gprs->atom), error->type);
 
+	DBG("driver_attached %d attached %d flags %d active_context %d status %s bearer %s",
+		gprs->driver_attached, gprs->attached, gprs->flags,
+		have_active_contexts(gprs),
+		registration_status_to_string(gprs->status),
+		packet_bearer_to_string(gprs->bearer));
+
 	if (error->type != OFONO_ERROR_TYPE_NO_ERROR)
 		gprs->driver_attached = !gprs->driver_attached;
 
@@ -1761,6 +1773,8 @@ static void gprs_attach_callback(const struct ofono_error *error, void *data)
 
 static void gprs_netreg_removed(struct ofono_gprs *gprs)
 {
+	DBG("");
+
 	gprs->netreg = NULL;
 
 	gprs->flags &= ~(GPRS_FLAG_RECHECK | GPRS_FLAG_ATTACHING);
@@ -1774,6 +1788,12 @@ static void gprs_netreg_removed(struct ofono_gprs *gprs)
 static void gprs_netreg_update(struct ofono_gprs *gprs)
 {
 	ofono_bool_t attach;
+
+	DBG("driver_attached %d attached %d flags %d active_context %d status %s bearer %s",
+		gprs->driver_attached, gprs->attached, gprs->flags,
+		have_active_contexts(gprs),
+		registration_status_to_string(gprs->status),
+		packet_bearer_to_string(gprs->bearer));
 
 	attach = gprs->netreg_status == NETWORK_REGISTRATION_STATUS_REGISTERED;
 
@@ -2610,7 +2630,8 @@ void ofono_gprs_detached_notify(struct ofono_gprs *gprs)
 
 void ofono_gprs_status_notify(struct ofono_gprs *gprs, int status)
 {
-	DBG("%s status %d", __ofono_atom_get_path(gprs->atom), status);
+	DBG("%s status %d flags %d powered %d", __ofono_atom_get_path(gprs->atom),
+	    status, gprs->flags, gprs->powered);
 
 	if (status == NETWORK_REGISTRATION_STATUS_ROAMING &&
 			ofono_netreg_get_status(gprs->netreg) ==
@@ -2731,6 +2752,12 @@ void ofono_gprs_bearer_notify(struct ofono_gprs *gprs, int bearer)
 	const char *path;
 	const char *value;
 
+	DBG("driver_attached %d attached %d flags %d active_context %d status %s bearer %s",
+		gprs->driver_attached, gprs->attached, gprs->flags,
+		have_active_contexts(gprs),
+		registration_status_to_string(gprs->status),
+		packet_bearer_to_string(gprs->bearer));
+
 	if (gprs->bearer == bearer)
 		return;
 
@@ -2750,8 +2777,16 @@ void ofono_gprs_context_deactivated(struct ofono_gprs_context *gc,
 	struct pri_context *ctx;
 	dbus_bool_t value;
 
+	DBG("");
+
 	if (gc->gprs == NULL)
 		return;
+
+	DBG("driver_attached %d attached %d flags %d active_context %d status %s bearer %s",
+	    gc->gprs->driver_attached, gc->gprs->attached, gc->gprs->flags,
+	    have_active_contexts(gc->gprs),
+	    registration_status_to_string(gc->gprs->status),
+	    packet_bearer_to_string(gc->gprs->bearer));
 
 	for (l = gc->gprs->contexts; l; l = l->next) {
 		ctx = l->data;
@@ -2761,6 +2796,8 @@ void ofono_gprs_context_deactivated(struct ofono_gprs_context *gc,
 
 		if (ctx->active == FALSE)
 			break;
+
+		DBG("Releasing active context");
 
 		pri_reset_context_settings(ctx);
 		release_context(ctx);

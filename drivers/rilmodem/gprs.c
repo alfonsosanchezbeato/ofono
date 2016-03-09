@@ -152,6 +152,8 @@ static void ril_gprs_state_change(struct ril_msg *message, gpointer user_data)
 	struct ofono_gprs *gprs = user_data;
 	struct ril_gprs_data *gd = ofono_gprs_get_data(gprs);
 
+	DBG("");
+
 	g_ril_print_unsol_no_args(gd->ril, message);
 
 	/*
@@ -226,6 +228,8 @@ static void ril_data_reg_cb(struct ril_msg *message, gpointer user_data)
 	gboolean attached = FALSE;
 	gboolean notify_status = FALSE;
 	int old_status;
+
+	DBG("");
 
 	old_status = gd->rild_status;
 
