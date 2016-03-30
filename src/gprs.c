@@ -1705,10 +1705,18 @@ static void gprs_attached_update(struct ofono_gprs *gprs)
 	 * the applications registered on GPRS properties.
 	 * Active contexts have to be release at driver level.
 	 */
+	DBG("attached is %d ; have_active_contexts %d",
+					attached, have_active_contexts(gprs));
 	if (attached == FALSE) {
 		release_active_contexts(gprs);
 		gprs->bearer = -1;
 	} else if (have_active_contexts(gprs) == TRUE) {
+		/*
+		 * Some times the context activates after a detach event and
+		 * right before an attach. We close it to avoid unexpected open
+		 * contexts.
+		 */
+		release_active_contexts(gprs);
 		gprs->flags |= GPRS_FLAG_ATTACHED_UPDATE;
 		return;
 	}

@@ -455,8 +455,8 @@ static void ril_gprs_context_deactivate_primary(struct ofono_gprs_context *gc,
 	struct ofono_error error;
 	int ret = 0;
 
-	DBG("*gc: %p cid: %d active_rild_cid: %d", gc, id,
-		gcd->active_rild_cid);
+	DBG("*gc: %p cid: %d active_rild_cid: %d state %d", gc, id,
+		gcd->active_rild_cid, gcd->state);
 
 	if (gcd->state == STATE_IDLE || gcd->state == STATE_DISABLING) {
 		/* nothing to do */
